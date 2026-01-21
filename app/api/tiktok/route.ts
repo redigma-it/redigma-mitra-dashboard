@@ -2,19 +2,16 @@ import { NextResponse } from 'next/server';
 
 const APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_URL || '';
 
-
 let cachedData: any[] | null = null;
 let cacheTimestamp: number = 0;
-const CACHE_DURATION = 5 * 60 * 1000; 
+const CACHE_DURATION = 5 * 60 * 1000;
 
 async function fetchAllData() {
   const now = Date.now();
   
-  
   if (cachedData && (now - cacheTimestamp) < CACHE_DURATION) {
     return cachedData;
   }
-  
   
   const response = await fetch(APPS_SCRIPT_URL, {
     method: 'GET',
@@ -31,8 +28,7 @@ async function fetchAllData() {
     throw new Error(result.error);
   }
 
-  
-  cachedData = result.data;
+  cachedData = result.data || [];
   cacheTimestamp = now;
   
   return cachedData;
@@ -51,9 +47,18 @@ export async function GET(request: Request) {
       );
     }
 
-    
     const allData = await fetchAllData();
     
+    // Null check
+    if (!allData) {
+      return NextResponse.json({
+        data: [],
+        page,
+        hasMore: false,
+        totalRows: 0,
+        totalShown: 0,
+      });
+    }
     
     const startIndex = (page - 1) * limit;
     const endIndex = startIndex + limit;
