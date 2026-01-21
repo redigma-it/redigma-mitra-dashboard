@@ -55,11 +55,7 @@ export default function TiktokPage() {
   const exportToExcel = async () => {
     try {
       setExporting(true);
-
-
       const XLSX = await import('xlsx');
-
-
       const allData = await fetchAllDataForExport();
 
       if (allData.length === 0) {
@@ -67,26 +63,19 @@ export default function TiktokPage() {
         return;
       }
 
-
       const worksheet = XLSX.utils.json_to_sheet(allData);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Data TikTok');
-
-
       const maxWidth = 50;
       const colWidths = Object.keys(allData[0]).map(key => {
         const maxLength = Math.max(
           key.length,
-          ...allData.map(row => String(row[key] || '').length)
+          ...allData.map((row: any) => String(row[key] || '').length)
         );
         return { wch: Math.min(maxLength + 2, maxWidth) };
       });
       worksheet['!cols'] = colWidths;
-
-
       const filename = `data-tiktok-${new Date().toISOString().split('T')[0]}.xlsx`;
-
-
       XLSX.writeFile(workbook, filename);
 
     } catch (err) {
