@@ -48,7 +48,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
       >
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
           <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            DashGo
+            Redigma Hub
           </h1>
           <button
             onClick={() => setIsOpen(false)}

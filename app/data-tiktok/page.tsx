@@ -12,15 +12,31 @@ export default function TiktokPage() {
   const [hasMore, setHasMore] = useState(true);
   const [totalRows, setTotalRows] = useState(0);
 
-  useEffect(() => {
-    fetchData(currentPage);
-  }, [currentPage]);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const dateColumn = 'Created Time';
+  const hiddenColumns = ['db_system_created_on', 'db_pk_pesanan'];
 
-  const fetchData = async (page: number) => {
+  useEffect(() => {
+    fetchData(currentPage, false);
+  }, [currentPage, startDate, endDate]);
+
+  const fetchData = async (page: number, forceRefresh: boolean = false) => {
     try {
       setLoading(true);
       setError('');
-      const response = await fetch(`/api/tiktok?page=${page}`);
+
+      const params = new URLSearchParams({ page: page.toString() });
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      params.append('dateColumn', dateColumn);
+
+
+      if (forceRefresh) {
+        params.append('clearCache', 'true');
+      }
+
+      const response = await fetch(`/api/tiktok?${params.toString()}`);
       const result = await response.json();
 
       if (response.ok) {
@@ -39,7 +55,12 @@ export default function TiktokPage() {
 
   const fetchAllDataForExport = async () => {
     try {
-      const response = await fetch(`/api/tiktok/export`);
+      const params = new URLSearchParams();
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      params.append('dateColumn', dateColumn);
+
+      const response = await fetch(`/api/tiktok/export?${params.toString()}`);
       const result = await response.json();
 
       if (response.ok) {
@@ -63,19 +84,34 @@ export default function TiktokPage() {
         return;
       }
 
-      const worksheet = XLSX.utils.json_to_sheet(allData);
+
+      const filteredData = allData.map((row: any) => {
+        const filtered: any = {};
+        Object.keys(row).forEach(key => {
+          if (!hiddenColumns.includes(key)) {
+            filtered[key] = row[key];
+          }
+        });
+        return filtered;
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(filteredData);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Data TikTok');
       const maxWidth = 50;
-      const colWidths = Object.keys(allData[0]).map(key => {
+      const colWidths = Object.keys(filteredData[0]).map(key => {
         const maxLength = Math.max(
           key.length,
-          ...allData.map((row: any) => String(row[key] || '').length)
+          ...filteredData.map((row: any) => String(row[key] || '').length)
         );
         return { wch: Math.min(maxLength + 2, maxWidth) };
       });
       worksheet['!cols'] = colWidths;
-      const filename = `data-tiktok-${new Date().toISOString().split('T')[0]}.xlsx`;
+
+      const dateRangeStr = startDate || endDate
+        ? `_${startDate || 'start'}_to_${endDate || 'end'}`
+        : '';
+      const filename = `data-tiktok${dateRangeStr}_${new Date().toISOString().split('T')[0]}.xlsx`;
       XLSX.writeFile(workbook, filename);
 
     } catch (err) {
@@ -84,6 +120,7 @@ export default function TiktokPage() {
       setExporting(false);
     }
   };
+
 
   const handlePrevious = () => {
     if (currentPage > 1) {
@@ -97,7 +134,19 @@ export default function TiktokPage() {
     }
   };
 
-  const headers = data.length > 0 ? Object.keys(data[0]) : [];
+  const handleFilterApply = () => {
+    setCurrentPage(1);
+    fetchData(1, false);
+  };
+
+  const handleFilterReset = () => {
+    setStartDate('');
+    setEndDate('');
+    setCurrentPage(1);
+  };
+
+  const allHeaders = data.length > 0 ? Object.keys(data[0]) : [];
+  const headers = allHeaders.filter(header => !hiddenColumns.includes(header));
 
   if (loading && data.length === 0) {
     return (
@@ -150,13 +199,13 @@ export default function TiktokPage() {
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  Export to Excel
+                  Ekspor ke Excel
                 </>
               )}
             </button>
 
             <button
-              onClick={() => fetchData(currentPage)}
+              onClick={() => fetchData(currentPage, true)}
               disabled={loading}
               className="inline-flex items-center px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 border border-indigo-300 rounded-lg hover:bg-indigo-50 disabled:opacity-50 transition-colors"
             >
@@ -167,9 +216,52 @@ export default function TiktokPage() {
             </button>
           </div>
         </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Filter Tanggal</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Dari Tanggal
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Sampai Tanggal
+              </label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+
+            <div className="flex items-end gap-2">
+              {/* <button
+                onClick={handleFilterApply}
+                className="flex-1 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                Terapkan Filter
+              </button> */}
+              <button
+                onClick={handleFilterReset}
+                className="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
 
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-          ℹ️ Data is fetched realtime from Google Sheets. Each page shows 20 rows.
+          Data is cached for 5 minutes. Click <strong>Refresh</strong> to get latest data from Google Sheets.
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -194,7 +286,7 @@ export default function TiktokPage() {
                 {data.length === 0 ? (
                   <tr>
                     <td colSpan={headers.length + 1} className="px-6 py-12 text-center text-gray-500">
-                      No data available on this page
+                      No data available {(startDate || endDate) && 'for selected date range'}
                     </td>
                   </tr>
                 ) : (

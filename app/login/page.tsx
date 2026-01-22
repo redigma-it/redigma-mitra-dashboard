@@ -40,7 +40,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <h1 className="text-3xl font-bold text-center mb-8 text-gray-900">
-          Masuk Akun Dashgo
+          Masuk Akun Redigma Hub
         </h1>
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
